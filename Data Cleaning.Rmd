@@ -1,0 +1,107 @@
+---
+title: "Uber and Lyft Cab Prices"
+output: html_notebook
+---
+
+## Loading the tables
+
+```{r}
+cab_df = read.csv('cab_rides.csv')
+
+str(cab_df)
+```
+
+```{r}
+weather_df = read.csv('weather.csv')
+str(weather_df)
+```
+
+```{r}
+View(cab_df)
+```
+
+## Data Cleaning
+
+We see that the time-stamp columns are not uniform between the weather and the cab ride dataset so we will first convert them to proper datetime format.
+
+```{r}
+cab_df$time_stamp <- as.POSIXct(cab_df$time_stamp / 1000, origin = "1970-01-01", tz = "EST")
+weather_df$time_stamp <- as.POSIXct(weather_df$time_stamp, origin = "1970-01-01", tz = "EST")
+```
+
+```{r}
+head(weather_df)
+```
+
+Next we will try to find missing data across the datasets.
+
+```{r}
+# Check for missing values in cab_rides dataset
+colSums(is.na(cab_df))
+```
+
+```{r}
+# Check for missing values in weather dataset
+colSums(is.na(weather_df))
+```
+
+We can see that we have 55095 missing values in price and 5382 in rain. We will fill the null values of rain with 0 because there are chances of not raining in a particular city at a particular time.
+
+```{r}
+weather_df$rain[is.na(weather_df$rain)] <- 0
+
+# Verify that there are no missing values in 'rain'
+sum(is.na(weather_df$rain))
+```
+
+Next we will round the timestamps to nearest hour and merge the datasets on location and timestamp.
+
+```{r}
+cab_df$time_stamp <- lubridate::floor_date(cab_df$time_stamp, unit = "hour")
+weather_df$time_stamp <- lubridate::floor_date(weather_df$time_stamp, unit = "hour")
+
+merged_data <- merge(cab_df, weather_df, by.x = c("time_stamp", "source"), by.y = c("time_stamp", "location"), all.x = TRUE)
+
+str(merged_data)
+```
+
+And finally we will remove all null values to clean the data.
+
+```{r}
+cleaned_data <- na.omit(merged_data)
+
+sum(is.na(cleaned_data))
+```
+
+For our project, we will will sample random 500 records for training and testing our regression model.
+
+```{r}
+set.seed(123)
+
+# Randomly sample 500 rows for training
+training_data <- cleaned_data[sample(nrow(cleaned_data), 500), ]
+
+# Randomly sample another 500 rows for testing (ensure no overlap)
+test_data <- cleaned_data[sample(nrow(cleaned_data), 500), ]
+```
+
+```{r}
+print(dim(training_data))
+print(dim(test_data))
+```
+
+```{r}
+summary(training_data)
+```
+
+```{r}
+summary(test_data)
+```
+
+```{r}
+# Save the training dataset to a CSV file
+write.csv(training_data, "training_data.csv", row.names = FALSE)
+
+# Save the testing dataset to a CSV file
+write.csv(test_data, "test_data.csv", row.names = FALSE)
+```

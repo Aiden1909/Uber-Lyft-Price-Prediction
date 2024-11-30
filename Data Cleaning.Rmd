@@ -3,6 +3,7 @@ title: "Uber and Lyft Cab Prices"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ## Loading the tables
@@ -16,10 +17,6 @@ str(cab_df)
 ```{r}
 weather_df = read.csv('weather.csv')
 str(weather_df)
-```
-
-```{r}
-View(cab_df)
 ```
 
 ## Data Cleaning
@@ -78,6 +75,7 @@ sum(is.na(cleaned_data))
 Categorizing timestamp into times of day, weekends and day of week for additional interpretations
 
 ```{r}
+library(dplyr)
 # Extract hour from datetime
 cleaned_data$hour <- format(cleaned_data$time_stamp, "%H")
 
@@ -117,7 +115,7 @@ head(cleaned_data)
 For our project, we will will sample random 500 records for training and testing our regression model.
 
 ```{r}
-set.seed(123)
+set.seed(42)
 
 # Randomly sample 500 rows for training
 training_data <- cleaned_data[sample(nrow(cleaned_data), 500), ]

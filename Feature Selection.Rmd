@@ -12,8 +12,8 @@ library(dplyr)
 training_data <- read.csv('training_data.csv')
 test_data <- read.csv(('test_data.csv'))
 
-training_data <- training_data %>% select(-id, -product_id)
-test_data <- test_data %>% select(-id, -product_id)
+training_data <- training_data %>% select(-id, -product_id, -source, -destination)
+test_data <- test_data %>% select(-id, -product_id, -source, -destination)
 ```
 
 ```{r}
@@ -27,8 +27,6 @@ training_data$cab_type <- as.factor(training_data$cab_type)
 training_data$name <- as.factor(training_data$name)
 training_data$time_period <- as.factor(training_data$time_period)
 training_data$day_of_week <- as.factor(training_data$day_of_week)
-training_data$source <- as.factor(training_data$source)
-training_data$destination <- as.factor(training_data$destination)
 
 str(training_data)
 ```
@@ -140,8 +138,7 @@ step(model, direction = "backward", trace = 0)
 ```
 
 ```{r}
-aic_model = lm(formula = price ~ distance + surge_multiplier + name + rain + 
-    peak_hour, data = training_data)
+aic_model = lm(formula = price ~ distance + surge_multiplier + name + rain, data = training_data)
 
 summary(aic_model)
 ```
@@ -253,8 +250,6 @@ summary(bic_model)
 
         -   The average deviation of predicted prices from observed prices is \~2.45 units, consistent with the previous models.
 
-<!-- -->
-
 2.  **Significant Predictors**:
 
     -   **`distance`**:
@@ -279,8 +274,6 @@ summary(bic_model)
 
         -   The coefficients highlight how different ride types contribute to price variability.
 
-<!-- -->
-
 3.  **Excluded Predictors**:
 
     -   Stepwise BIC removed variables like:
@@ -301,117 +294,38 @@ summary(bic_model)
 
     -   `name` captures the pricing tiers across different ride types.
 
-### Phase 2: Residual Plot Test
+### Phase 2: Anova Test
 
-Both AIC and BIC models are promising, so we will compare them using residual and QQ plots and whichever follows the assumptions better will be taken as the best model.
-
-##### AIC
+Both AIC and BIC models are promising, so we will compare them using ANOVA and check whether extra predictors in AIC are significant or not.
 
 ```{r}
-par(mfrow = c(1, 2))
-
-plot(resid(aic_model)~fitted(aic_model), col = "grey", pch = 20,
-     xlab = "Fitted", ylab = "Residuals", main = "Residual plot")
-abline(h = 0, col = "darkorange", lwd = 2)
-
-qqnorm(resid(aic_model), main = "Normal Q-Q Plot", col = "darkgrey")
-qqline(resid(aic_model), col = "dodgerblue", lwd = 2)
+anova(bic_model, aic_model)
 ```
 
-##### BIC
+1.  **F-statistic and p-value**:
 
-```{r}
-par(mfrow = c(1, 2))
+    -   F = 3.0478
 
-plot(resid(bic_model)~fitted(bic_model), col = "grey", pch = 20,
-     xlab = "Fitted", ylab = "Residuals", main = "Residual plot")
-abline(h = 0, col = "darkorange", lwd = 2)
+    -   p-value = 0.08758
 
-qqnorm(resid(bic_model), main = "Normal Q-Q Plot", col = "darkgrey")
-qqline(resid(bic_model), col = "dodgerblue", lwd = 2)
-```
-
-### Comparison of Residual Plots for AIC and BIC Models
-
-The residual diagnostics for the **BIC model** appear very similar to those for the **AIC model**:
-
-1.  **Residual Plot**:
-
-    -   The residuals are randomly scattered around the horizontal line at 0, which is good.
-
-    -   Heteroscedasticity (slightly increasing spread for higher fitted values) is still visible, just as in the AIC model.
-
-    -   No significant difference from the AIC model in this regard.
-
-2.  **Normal Q-Q Plot**:
-
-    -   The residuals align closely with the theoretical line, except for slight deviations in the tails.
-
-    -   Again, this is similar to the AIC model.
-
-### Decision Between AIC and BIC
-
-Since the residual patterns for both models are similar, the decision comes down to the following:
-
--   **AIC**:
-
-    -   Slightly more complex model with additional predictors.
-
-    -   Better for predictive accuracy if you aim to maximize fit, especially for larger datasets.
-
--   **BIC**:
-
-    -   Simpler model with fewer predictors.
-
-    -   Prioritizes parsimony and interpretability, making it a better choice if you value simplicity without sacrificing much explanatory power.
-
-Hence we will go with BIC model for simplicity as it does not sacrifice much predictive power, given that we are training on a small dataset.
-
-Testing for significance of interaction
-
-```{r}
-interaction_model = lm(price ~ distance*surge_multiplier,training_data)
-summary(interaction_model)
-```
-
-```{r}
-anova(reduced_model,interaction_model)
-```
-
-1.  **F-Statistic and p-Value**:
-
-    -   **F = 5.2789**, **p = 0.022**:
-
-        -   The p-value is below 0.05, indicating the interaction term is statistically significant.
-
-        -   This suggests that the relationship between `distance` and `price` depends on the value of `surge_multiplier`, and the interaction should be included in the model.
+    -   The p-value is greater than 0.05, suggesting that the addition of `rain` does not significantly improves the model at a 5% significance level.
 
 ### Interpretation:
 
--   **Significant Interaction**:
+The results indicate that including `rain` as predictor does not improve the model's explanatory power.
 
-    -   The interaction term (`distance * surge_multiplier`) captures how the effect of `distance` on `price` changes with `surge_multiplier`. For example:
-
-        -   Longer distances may be disproportionately affected during surge pricing periods.
-
-    -   This significantly improves the model's fit compared to the simpler model without the interaction.
+Hence we will go with BIC model.
 
 ```{r}
-# Perform backward selection using step() with AIC
-step(model, direction = "backward", trace = 0)
+library(car)
+vif(bic_model)
 ```
 
 ```{r}
-step(model, direction = "backward", trace = 0, k = log(nrow(training_data)))
+model_int = lm(price ~ distance + surge_multiplier + name + distance:surge_multiplier, training_data)
+summary(model_int)
 ```
 
 ```{r}
-aic_model = lm(formula = price ~ distance + surge_multiplier + name + rain + 
-    peak_hour, data = training_data)
-summary(aic_model)
-```
-
-```{r}
-bic_model = lm(formula = price ~ distance + surge_multiplier + name, data = training_data)
-summary(bic_model)
+anova(bic_model,model_int)
 ```

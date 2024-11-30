@@ -1,0 +1,146 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Results and Stats
+
+Now that we have got our model, lets predict on our test data and check the statistics
+
+```{r}
+training_data <- read.csv('training_data.csv')
+test_data <- read.csv(('test_data.csv'))
+
+training_data$name <- as.factor(training_data$name)
+test_data$name <- as.factor(test_data$name)
+```
+
+```{r}
+lambda = 0.4
+model = lm(price~distance + surge_multiplier + name + distance:surge_multiplier, refined_data)
+
+summary(model)
+```
+
+```{r}
+predictions <- predict(model, newdata = refined_data)
+
+RMSE <- sqrt(mean((refined_data$price - predictions)^2))
+MAE <- mean(abs(refined_data$price - predictions))
+cat("RMSE:", RMSE, "\nMAE:", MAE, "\n")
+```
+
+```{r}
+mean_price <- mean(refined_data$price, na.rm = TRUE)
+cat("Mean Price:", mean_price, "\n")
+rmse_percentage <- (RMSE / mean_price) * 100
+mae_percentage <- (MAE / mean_price) * 100
+cat("RMSE as Percentage of Mean Price:", rmse_percentage, "%\n")
+cat("MAE as Percentage of Mean Price:", mae_percentage, "%\n")
+```
+
+```{r}
+test_predictions <- predict(model, newdata = refined_test_data)
+
+RMSE <- sqrt(mean((refined_test_data$price - test_predictions)^2))
+MAE <- mean(abs(refined_test_data$price - test_predictions))
+cat("RMSE:", RMSE, "\nMAE:", MAE, "\n")
+```
+
+```{r}
+mean_price <- mean(refined_test_data$price, na.rm = TRUE)
+cat("Mean Price:", mean_price, "\n")
+rmse_percentage <- (RMSE / mean_price) * 100
+mae_percentage <- (MAE / mean_price) * 100
+cat("RMSE as Percentage of Mean Price:", rmse_percentage, "%\n")
+cat("MAE as Percentage of Mean Price:", mae_percentage, "%\n")
+```
+
+```{r}
+test_cooks_distance <- cooks.distance(model, newdata = test_data)
+
+# Identify influential points using Cook's Distance
+test_influential_points <- which(test_cooks_distance > (4 / nrow(test_data)))
+
+# View indices of influential points
+cat("Influential Points in Test Data:", test_influential_points, "\n")
+```
+
+```{r}
+refined_test_data <- test_data[-test_influential_points, ]
+```
+
+```{r}
+plot(fitted(model), residuals(model), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted", col = "blue", pch = 20)
+abline(h = 0, col = "red", lwd = 2)
+```
+
+```{r}
+# Generate a sequence of distance values
+distance_seq <- seq(min(refined_data$distance), max(refined_data$distance), length.out = 100)
+
+# Define surge multiplier levels to plot
+surge_levels <- c(1, 1.5, 2) # Example surge multipliers
+
+# Scatter plot of observed data
+plot(refined_data$distance, refined_data$price, 
+     xlab = "Distance", ylab = "Price", 
+     main = "Fitted Lines with Interaction", 
+     pch = 20, col = "grey")
+
+# Add fitted lines for different surge multipliers
+for (surge in surge_levels) {
+  fitted_values <- predict(lm(price ~ distance + surge_multiplier + name + distance:surge_multiplier, refined_data),
+                           newdata = data.frame(distance = distance_seq,
+                                                surge_multiplier = surge,
+                                                name = "Lyft")) # Replace with a specific cab type
+  lines(distance_seq, fitted_values, col = ifelse(surge == 1, "red", ifelse(surge == 1.5, "blue", "green")), lwd = 2)
+}
+
+# Add legend
+legend("topright", legend = paste("Surge Multiplier =", surge_levels), 
+       col = c("red", "blue", "green"), lty = 1, lwd = 2)
+
+```
+
+```{r}
+# Load required libraries
+library(Metrics)  # For RMSE and MAE calculations
+
+# Ensure the test dataset is loaded and cleaned properly
+# Replace `test_data` with your actual test dataset variable name
+test_data <- refined_test_data  # Assuming refined test data is already available
+
+# Apply the Box-Cox transformation for prediction
+lambda <- 0.4  # Adjust to the value you determined
+test_data$transf_price <- ((test_data$price^lambda - 1) / lambda)
+
+# Predict using the transformed model
+predicted_values <- predict(model_transf, newdata = test_data)
+
+# Back-transform the predictions to the original scale
+back_transformed_predictions <- (predicted_values * lambda + 1)^(1 / lambda)
+
+# Calculate RMSE and MAE
+rmse_value <- rmse(test_data$price, back_transformed_predictions)
+mae_value <- mae(test_data$price, back_transformed_predictions)
+
+# Print results
+cat("RMSE (Back-Transformed):", rmse_value, "\n")
+cat("MAE (Back-Transformed):", mae_value, "\n")
+
+# Calculate RMSE and MAE as percentages of the mean price
+mean_price <- mean(test_data$price)
+rmse_percentage <- (rmse_value / mean_price) * 100
+mae_percentage <- (mae_value / mean_price) * 100
+
+cat("RMSE as Percentage of Mean Price:", rmse_percentage, "%\n")
+cat("MAE as Percentage of Mean Price:", mae_percentage, "%\n")
+
+```
+
+```{r}
+vif(model_transf, type = "predictor")
+```

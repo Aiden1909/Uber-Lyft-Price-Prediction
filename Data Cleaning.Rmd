@@ -75,7 +75,7 @@ cleaned_data <- na.omit(merged_data)
 sum(is.na(cleaned_data))
 ```
 
-Categorizing timestamp into times of day
+Categorizing timestamp into times of day, weekends and day of week for additional interpretations
 
 ```{r}
 # Extract hour from datetime

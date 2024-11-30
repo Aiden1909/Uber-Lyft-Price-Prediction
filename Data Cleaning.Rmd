@@ -1,6 +1,8 @@
 ---
 title: "Uber and Lyft Cab Prices"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 ## Loading the tables
@@ -71,6 +73,45 @@ And finally we will remove all null values to clean the data.
 cleaned_data <- na.omit(merged_data)
 
 sum(is.na(cleaned_data))
+```
+
+Categorizing timestamp into times of day
+
+```{r}
+# Extract hour from datetime
+cleaned_data$hour <- format(cleaned_data$time_stamp, "%H")
+
+# Define the mapping for time periods
+time_period_mapping <- list(
+  morning = c("06", "07", "08", "09"),
+  noon = c("10", "11", "12", "13"),
+  afternoon = c("14", "15", "16", "17"),
+  evening = c("18", "19", "20", "21"),
+  night = c("22", "23", "00", "01", "02"),
+  late_night = c("03", "04", "05")
+)
+
+# Create time_period column based on the mapping
+cleaned_data$time_period <- sapply(cleaned_data$hour, function(h) {
+  period <- names(Filter(function(x) h %in% x, time_period_mapping))
+  if (length(period) > 0) return(period) else return(NA)
+})
+
+cleaned_data$day_of_week <- weekdays(cleaned_data$time_stamp)
+cleaned_data$weekend <- ifelse(cleaned_data$day_of_week %in% c("Saturday", "Sunday"), 1, 0)
+
+cleaned_data$peak_hour <- ifelse(cleaned_data$hour %in% c(7:9, 17:19), 1, 0)
+
+# Drop unnecessary columns
+cleaned_data <- cleaned_data %>%
+  select(-time_stamp, -hour)
+
+# View the updated dataset
+head(cleaned_data)
+```
+
+```{r}
+head(cleaned_data)
 ```
 
 For our project, we will will sample random 500 records for training and testing our regression model.

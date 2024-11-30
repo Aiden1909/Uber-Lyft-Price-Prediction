@@ -316,20 +316,20 @@ Taking lambda=0.4
 
 ```{r}
 lambda = 0.4
-model_transf <- lm(((price^(lambda)-1)/(lambda))~distance + surge_multiplier + I(distance^2) + I(surge_multiplier^2) + name,data=refined_data)
+model_transf_2nd_order <- lm(((price^(lambda)-1)/(lambda))~distance + surge_multiplier + I(distance^2) + I(surge_multiplier^2) + name,data=refined_data)
 par(mfrow = c(1, 2))
 
-plot(resid(model_transf)~fitted(model_transf), col = "grey", pch = 20,
+plot(resid(model_transf_2nd_order)~fitted(model_transf_2nd_order), col = "grey", pch = 20,
      xlab = "Fitted", ylab = "Residuals", main = "Residual plot")
 abline(h = 0, col = "darkorange", lwd = 2)
 
-qqnorm(resid(model_transf), main = "Normal Q-Q Plot", col = "darkgrey")
-qqline(resid(model_transf), col = "dodgerblue", lwd = 2)
+qqnorm(resid(model_transf_2nd_order), main = "Normal Q-Q Plot", col = "darkgrey")
+qqline(resid(model_transf_2nd_order), col = "dodgerblue", lwd = 2)
 ```
 
 ```{r}
-print(bptest(model_transf))
-print(shapiro.test(residuals(model_transf)))
+print(bptest(model_transf_2nd_order))
+print(shapiro.test(residuals(model_transf_2nd_order)))
 ```
 
 ### Interpretation of Residual Plots After Transformation and Second-Order Terms (λ=0.4):
@@ -393,3 +393,8 @@ print(shapiro.test(residuals(model_transf)))
     -   The Box-Cox transformation has successfully addressed residual normality issues.
 
     -   The model now meets the normality assumption of linear regression.
+
+```{r}
+AIC(model_transf,model_quad, model)
+AIC(model_2nd_order, model_transf_2nd_order)
+```

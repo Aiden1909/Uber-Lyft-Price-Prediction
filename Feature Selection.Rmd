@@ -82,53 +82,39 @@ model <- lm(price ~ ., data = training_data)
 summary(model)
 ```
 
-### Key Insights:
+### Key Observations:
 
-#### **1. Model Fit**
+1.  **Significant Predictors**:
 
--   **R² (0.9336)**: 93.36% of the variation in `price` is explained by the predictors.
+    -   **Distance**: The coefficient (2.67) indicates that for every unit increase in distance, the price increases by approximately \$2.67, holding other variables constant.
 
--   **Adjusted R² (0.9259)**: Adjusted for the number of predictors, it remains very high, suggesting that most predictors are contributing meaningfully.
+    -   **Cab Type**: "Uber" adds approximately \$14.46 to the base fare compared to Lyft.
 
--   **Residual Standard Error (2.464)**: The average deviation of observed prices from predicted prices is around 2.46 units.
+    -   **Surge Multiplier**: A unit increase in the surge multiplier increases the price by \$27.14.
 
-#### **2. Significant Predictors**
+    -   **Vehicle Names (e.g., Black SUV, Lux, etc.)**: Significant and show large differences in price, likely due to premium services.
 
--   Predictors with p-values less than 0.05 are statistically significant:
+    -   **Time Period (Morning)**: Morning rides have a slightly lower fare (-\$1.62) compared to the reference time period.
 
-    -   **`distance`**: Highly significant (**p \< 2e-16**), with an increase of approximately **\$2.45** per unit of distance.
+2.  **Non-Significant Predictors**:
 
-    -   **`cab_typeUber`**: Uber rides are **\$14.50** more expensive on average compared to Lyft (**p \< 2e-16**).
+    -   Weather-related variables (e.g., temperature, clouds, rain, humidity, and wind) are not significant in this model.
 
-    -   **`surge_multiplier`**: Each unit increase in surge multiplier adds **\$20.74** to the price (**p \< 2e-16**).
+    -   Day of the week and peak hour do not significantly influence price.
 
-    -   **`name` (ride types)**:
+3.  **Excluded Variables**:
 
-        -   Significant across categories, e.g., **"Lux Black XL"** adds **\$25.64**, while **"UberPool"** reduces price by **\$12.14**.
+    -   Some variables, such as `nameShared` and `weekend`, were excluded due to singularities, likely because they have little variation or are linearly dependent on other predictors.
 
-    -   **`destinationFinancial District`** and **`destinationNorth Station`**: Both are associated with significant price differences.
+4.  **Goodness of Fit**:
 
-    -   **`time_periodnight`**: Prices are lower by **\$1.24** during nighttime hours (**p = 0.0133**).
+    -   The **R-squared** value of 0.9125 and adjusted R-squared of 0.9067 indicate that the model explains over 90% of the variance in price, which is very high.
 
-#### **3. Insignificant Predictors**
-
--   Variables with p-values \> 0.05 do not significantly contribute to the model:
-
-    -   **Source and Destination (most levels)**: Many levels are insignificant, likely due to redundancy or overlap in capturing price variability.
-
-    -   **Weather Variables**: `temp`, `clouds`, `pressure`, `rain`, `wind`, and `humidity` are mostly insignificant.
-
-    -   **Time Periods (other than night)**: Most time periods like `evening`, `late_night`, and `morning` are not significant.
-
-    -   **Days of the Week**: Insignificant, suggesting that day-to-day variability in pricing is minimal.
-
-#### **4. Singularities (NA Coefficients)**
-
--   Some variables (e.g., `destinationSouth Station`, `nameShared`, `weekend`) are excluded from the model due to **collinearity**. This means these variables are perfectly correlated with others and do not provide additional information.
+    -   Residual standard error (2.927) suggests that the typical deviation of observed prices from the fitted prices is around \$2.93.
 
 ### Phase 1: Best Subset of Predictors using AIC & BIC
 
-We can see from the above summary that `distance`, `surge_multiplier` , `name` and few categories of `destination` and `time_period` seem to be the important predictors with 95% confidence interval. Next, we want to confirm the best predictors by getting the best AIC & BIC using backward selection.
+We can see from the above summary that `distance`, `surge_multiplier` , `name` seem to be the important predictors with 95% confidence interval. Next, we want to confirm the best predictors by getting the best AIC & BIC using backward selection.
 
 ##### AIC
 
@@ -143,85 +129,43 @@ aic_model = lm(formula = price ~ distance + surge_multiplier + name + rain, data
 summary(aic_model)
 ```
 
-### Key Results:
+### **Key Observations**:
 
-1.  **Model Fit**:
+1.  **Selected Predictors**:
 
-    -   **Multiple R²: 0.9296**:
+    -   Predictors included in the model:
 
-        -   The model explains 92.96% of the variability in `price`, which is excellent.
+        -   **Distance**: Strongly significant (p\<2e−16) with a positive coefficient of \~2.69, indicating that price increases with distance.
 
-    -   **Adjusted R²: 0.9274**:
+        -   **Surge Multiplier**: Highly significant (p\<2e−16) and contributes significantly to price (coefficient \~27.17).
 
-        -   Slightly lower due to the number of predictors, but still very strong.
+        -   **Name**: All levels of the `name` variable are significant, showing that different vehicle types affect price. For example:
 
-    -   **Residual Standard Error (2.439)**:
+            -   "Black SUV" increases price by \~9.55 compared to the reference level.
 
-        -   On average, the predicted prices deviate by \~2.44 units from the observed prices.
+            -   "Lyft" and "Shared" decrease price significantly compared to the reference.
 
-<!-- -->
+        -   **Rain**: Marginally significant (p=0.08758), with a positive coefficient (\~6.00), indicating that rainy weather could slightly increase the price.
 
-2.  **Significant Predictors**:
+2.  **Model Fit**:
 
-    -   **`distance`**:
+    -   **R-squared = 0.9092**:
 
-        -   Coefficient: 2.33 (**p \< 2e-16**).
+        -   The model explains 90.92% of the variance in the price, which is excellent.
 
-        -   A \$2.33 increase in price for every unit increase in distance.
+    -   **Adjusted R-squared = 0.9066**:
 
-    -   **`surge_multiplier`**:
+        -   Adjusted for the number of predictors, this value remains high, indicating that the model is not overfitting.
 
-        -   Coefficient: 20.99 (**p \< 2e-16**).
+    -   **Residual Standard Error = 2.928**:
 
-        -   A 1-unit increase in surge multiplier adds \~\$21 to the price.
+        -   The average deviation of observed prices from the predicted prices is around \$2.93.
 
-    -   **Ride Types (`name`)**:
+3.  **Significance of Predictors**:
 
-        -   All categories are significant, with wide-ranging effects on price:
+    -   Most predictors are highly significant (p\<0.001).
 
-            -   Positive: `Black SUV` (+\$10.17), `Lux Black XL` (+\$11.26).
-
-            -   Negative: `Lyft` (-\$11.99), `UberPool` (-\$12.24).
-
-        -   This highlights the strong influence of ride type on price.
-
-    -   **`rain`**:
-
-        -   Coefficient: 3.70 (**p = 0.0754**).
-
-        -   Prices tend to increase by \~\$3.70 during rain (weakly significant at the 10% level).
-
-    -   **`peak_hour`**:
-
-        -   Coefficient: -0.54 (**p = 0.065**).
-
-        -   Weak evidence that prices decrease slightly during peak hours.
-
-<!-- -->
-
-3.  **Excluded Predictors**:
-
-    -   Stepwise AIC excluded variables like:
-
-        -   `source` and `destination`: Likely redundant or insignificant after including `distance`.
-
-        -   Weather variables (`temp`, `clouds`, etc.): Likely not strong predictors of price.
-
-        -   `time_period` and `day_of_week`: Weak contributors to variability in price.
-
-### Insights from the Model:
-
--   **Key Drivers of Price**:
-
-    -   `distance` and `surge_multiplier` are the most impactful predictors, as expected.
-
-    -   Ride types (`name`) capture pricing tiers and account for substantial variability.
-
-    -   Weather (`rain`) has a small but noticeable effect, aligning with real-world surge pricing practices during inclement weather.
-
--   **Peak Hour Dynamics**:
-
-    -   The weak negative coefficient for `peak_hour` suggests that peak hours might have been indirectly captured through other variables (e.g., `surge_multiplier`).
+    -   Rain is marginally significant and could be reconsidered for inclusion depending on your objectives.
 
 ##### BIC
 
@@ -234,65 +178,45 @@ bic_model = lm(formula = price ~ distance + surge_multiplier + name, data = trai
 summary(bic_model)
 ```
 
-### Key Results:
+### **Key Observations**:
 
-1.  **Model Fit**:
+1.  **Significant Predictors**:
 
-    -   **Multiple R²: 0.9287**:
+    -   **Distance**: Coefficient 2.6844, p\<2e−16:
 
-        -   The model explains 92.87% of the variability in `price`, which is excellent.
+        -   For every additional unit of distance, the price increases by approximately \$2.68, holding other variables constant.
 
-    -   **Adjusted R²: 0.9268**:
+    -   **Surge Multiplier**: Coefficient 27.1617, p\<2e−16:
 
-        -   Adjusted for the number of predictors, it remains very strong, indicating good generalizability.
+        -   A unit increase in the surge multiplier leads to an increase in price by approximately \$27.16.
 
-    -   **Residual Standard Error (2.449)**:
+    -   **Vehicle Type (Name)**:
 
-        -   The average deviation of predicted prices from observed prices is \~2.45 units, consistent with the previous models.
+        -   Vehicle types significantly impact price compared to the reference level (likely one of the categories, e.g., "Black").
 
-2.  **Significant Predictors**:
+        -   For example:
 
-    -   **`distance`**:
+            -   "Black SUV" increases the price by \~\$9.58.
 
-        -   Coefficient: 2.34 (**p \< 2e-16**).
+            -   "Lyft" decreases the price by \~\$11.78.
 
-        -   A \$2.34 increase in price for every unit increase in distance.
+2.  **Goodness of Fit**:
 
-    -   **`surge_multiplier`**:
+    -   **R-squared** = 0.9087:
 
-        -   Coefficient: 20.94 (**p \< 2e-16**).
+        -   The model explains 90.87% of the variance in price, which is excellent.
 
-        -   Each 1-unit increase in surge multiplier adds \~\$20.94 to the price.
+    -   **Adjusted R-squared** = 0.9063:
 
-    -   **Ride Types (`name`)**:
+        -   The adjusted value remains high, confirming that adding predictors doesn’t overly complicate the model.
 
-        -   All levels are highly significant, reflecting their critical role in determining price:
+    -   **Residual Standard Error (RSE)** = 2.934:
 
-            -   Positive Effects: `Black SUV` (+\$10.25), `Lux Black XL` (+\$11.25).
+        -   On average, predictions deviate from actual prices by \~\$2.93.
 
-            -   Negative Effects: `UberPool` (-\$12.18), `Lyft` (-\$11.99).
+3.  **Model Simplicity**:
 
-        -   The coefficients highlight how different ride types contribute to price variability.
-
-3.  **Excluded Predictors**:
-
-    -   Stepwise BIC removed variables like:
-
-        -   `rain`, `peak_hour`: These contributed minimally to the variability in price compared to the remaining predictors.
-
-        -   `source` and `destination`: Likely redundant after including `distance`.
-
-### Interpretation of the Model:
-
--   **Compact and Interpretable**:
-
-    -   The BIC-optimized model is simpler with only three predictors, making it easier to interpret and communicate results.
-
--   **Key Drivers of Price**:
-
-    -   `distance` and `surge_multiplier` are the most impactful continuous predictors, as expected.
-
-    -   `name` captures the pricing tiers across different ride types.
+    -   Excluding **rain** from the predictors has not significantly reduced the explanatory power (compare adjusted R-squared from previous models).
 
 ### Phase 2: Anova Test
 
@@ -304,7 +228,7 @@ anova(bic_model, aic_model)
 
 1.  **F-statistic and p-value**:
 
-    -   F = 3.0478
+    -   F = 2.9301
 
     -   p-value = 0.08758
 
@@ -321,11 +245,92 @@ library(car)
 vif(bic_model)
 ```
 
+Next we will add an interaction term and check if its significant or not
+
 ```{r}
 model_int = lm(price ~ distance + surge_multiplier + name + distance:surge_multiplier, training_data)
 summary(model_int)
 ```
 
+### **Key Observations**:
+
+1.  **Significant Predictors**:
+
+    -   **Distance**: Coefficient = -7.1505:
+
+        -   Surprisingly, the main effect of distance is negative when the interaction is included. This suggests the interaction term dominates the influence of distance.
+
+    -   **Surge Multiplier**: Coefficient = 1.2779:
+
+        -   The main effect of surge multiplier is not significant (p=0.7336), likely due to its interaction with distance.
+
+    -   **Distance:Surge Multiplier**: Coefficient = 9.7187:
+
+        -   Highly significant (p\<2e−16), indicating a strong combined effect of distance and surge multiplier on price.
+
+        -   For every unit increase in both `distance` and `surge_multiplier`, the price increases by approximately \$9.72.
+
+    -   **Name**: All levels of the `name` variable are highly significant, with similar effects as observed in previous models.
+
+2.  **Model Fit**:
+
+    -   **R-squared = 0.9179**:
+
+        -   The model explains 91.79% of the variance in price.
+
+    -   **Adjusted R-squared = 0.9155**:
+
+        -   The adjusted R-squared value indicates the interaction term contributes meaningfully without overfitting.
+
+    -   **Residual Standard Error = 2.785**:
+
+        -   The predictions deviate from actual prices by \~\$2.79 on average.
+
+3.  **Interpretation of Interaction**:
+
+    -   The interaction term suggests the effect of `distance` on price depends on the `surge_multiplier`, and vice versa.
+
+    -   For example:
+
+        -   At higher surge multipliers, the influence of distance on price becomes more pronounced.
+
+### **Evaluation**:
+
+1.  **Advantages**:
+
+    -   The inclusion of the interaction term improves model fit, as indicated by higher R-squared and lower residual standard error.
+
+    -   This model better captures the dynamics between `distance` and `surge_multiplier`.
+
+2.  **Disadvantages**:
+
+    -   The main effects of `distance` and `surge_multiplier` are less interpretable due to the inclusion of the interaction term.
+
+    -   Adding interaction terms increases model complexity, which may lead to overfitting.
+
 ```{r}
 anova(bic_model,model_int)
 ```
+
+### **Key Takeaways:**
+
+1.  **Significance of the Interaction Term**:
+
+    -   The F-statistic for the comparison is **54.119**, with a **p-value of** 8.113×10−13.
+
+    -   This indicates that the interaction term **significantly improves the model** at any conventional significance level (p\<0.001).
+
+2.  **Reduction in Residual Sum of Squares (RSS)**:
+
+    -   Model 1 (without interaction): RSS=4182.7
+
+    -   Model 2 (with interaction): RSS=3762.8
+
+    -   The addition of the interaction term reduces the residual variance, suggesting that the interaction term captures additional variability in `price` that the base predictors (`distance`, `surge_multiplier`, `name`) alone cannot explain.
+
+```{r}
+AIC(bic_model,model_int)
+BIC(bic_model,model_int)
+```
+
+Hence we decide to keep the interaction term.

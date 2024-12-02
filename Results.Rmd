@@ -5,142 +5,172 @@ output: html_notebook
 
 ## Results and Stats
 
-Now that we have got our model, lets predict on our test data and check the statistics
+After removing outliers, we want to compare between our base model, boxcox model and 2nd order model
 
 ```{r}
-training_data <- read.csv('training_data.csv')
-test_data <- read.csv(('test_data.csv'))
-
-training_data$name <- as.factor(training_data$name)
-test_data$name <- as.factor(test_data$name)
-```
-
-```{r}
-lambda = 0.4
-model = lm(price~distance + surge_multiplier + name + distance:surge_multiplier, refined_data)
-
-summary(model)
-```
-
-```{r}
-predictions <- predict(model, newdata = refined_data)
-
-RMSE <- sqrt(mean((refined_data$price - predictions)^2))
-MAE <- mean(abs(refined_data$price - predictions))
-cat("RMSE:", RMSE, "\nMAE:", MAE, "\n")
-```
-
-```{r}
-mean_price <- mean(refined_data$price, na.rm = TRUE)
-cat("Mean Price:", mean_price, "\n")
-rmse_percentage <- (RMSE / mean_price) * 100
-mae_percentage <- (MAE / mean_price) * 100
-cat("RMSE as Percentage of Mean Price:", rmse_percentage, "%\n")
-cat("MAE as Percentage of Mean Price:", mae_percentage, "%\n")
-```
-
-```{r}
-test_predictions <- predict(model, newdata = refined_test_data)
-
-RMSE <- sqrt(mean((refined_test_data$price - test_predictions)^2))
-MAE <- mean(abs(refined_test_data$price - test_predictions))
-cat("RMSE:", RMSE, "\nMAE:", MAE, "\n")
-```
-
-```{r}
-mean_price <- mean(refined_test_data$price, na.rm = TRUE)
-cat("Mean Price:", mean_price, "\n")
-rmse_percentage <- (RMSE / mean_price) * 100
-mae_percentage <- (MAE / mean_price) * 100
-cat("RMSE as Percentage of Mean Price:", rmse_percentage, "%\n")
-cat("MAE as Percentage of Mean Price:", mae_percentage, "%\n")
-```
-
-```{r}
-test_cooks_distance <- cooks.distance(model, newdata = test_data)
-
-# Identify influential points using Cook's Distance
-test_influential_points <- which(test_cooks_distance > (4 / nrow(test_data)))
-
-# View indices of influential points
-cat("Influential Points in Test Data:", test_influential_points, "\n")
-```
-
-```{r}
-refined_test_data <- test_data[-test_influential_points, ]
-```
-
-```{r}
-plot(fitted(model), residuals(model), 
-     xlab = "Fitted Values", ylab = "Residuals", 
-     main = "Residuals vs Fitted", col = "blue", pch = 20)
-abline(h = 0, col = "red", lwd = 2)
-```
-
-```{r}
-# Generate a sequence of distance values
-distance_seq <- seq(min(refined_data$distance), max(refined_data$distance), length.out = 100)
-
-# Define surge multiplier levels to plot
-surge_levels <- c(1, 1.5, 2) # Example surge multipliers
-
-# Scatter plot of observed data
-plot(refined_data$distance, refined_data$price, 
-     xlab = "Distance", ylab = "Price", 
-     main = "Fitted Lines with Interaction", 
-     pch = 20, col = "grey")
-
-# Add fitted lines for different surge multipliers
-for (surge in surge_levels) {
-  fitted_values <- predict(lm(price ~ distance + surge_multiplier + name + distance:surge_multiplier, refined_data),
-                           newdata = data.frame(distance = distance_seq,
-                                                surge_multiplier = surge,
-                                                name = "Lyft")) # Replace with a specific cab type
-  lines(distance_seq, fitted_values, col = ifelse(surge == 1, "red", ifelse(surge == 1.5, "blue", "green")), lwd = 2)
+calculate_metrics <- function(model, test_data, response, transformation = NULL, lambda = NULL) {
+  predictions <- predict(model, newdata = test_data)
+  
+  # Back-transform predictions if needed
+  if (!is.null(transformation) && transformation == "boxcox") {
+    predictions <- ((predictions * lambda) + 1)^(1 / lambda)
+  }
+  
+  actuals <- test_data[[response]]
+  rmse <- sqrt(mean((actuals - predictions)^2))
+  mae <- mean(abs(actuals - predictions))
+  
+  mean_price <- mean(actuals)
+  rmse_percentage <- (rmse / mean_price) * 100
+  mae_percentage <- (mae / mean_price) * 100
+  
+  return(data.frame(
+    RMSE = rmse,
+    MAE = mae,
+    RMSE_Percentage = rmse_percentage,
+    MAE_Percentage = mae_percentage
+  ))
 }
-
-# Add legend
-legend("topright", legend = paste("Surge Multiplier =", surge_levels), 
-       col = c("red", "blue", "green"), lty = 1, lwd = 2)
-
 ```
 
 ```{r}
-# Load required libraries
-library(Metrics)  # For RMSE and MAE calculations
+# Specify the response variable
+response_var <- "price"
 
-# Ensure the test dataset is loaded and cleaned properly
-# Replace `test_data` with your actual test dataset variable name
-test_data <- refined_test_data  # Assuming refined test data is already available
+# Calculate metrics for the base model with interaction
+metrics_base <- calculate_metrics(model, test_data, response_var)
 
-# Apply the Box-Cox transformation for prediction
-lambda <- 0.4  # Adjust to the value you determined
-test_data$transf_price <- ((test_data$price^lambda - 1) / lambda)
+# Calculate metrics for the Box-Cox transformed model
+metrics_boxcox <- calculate_metrics(model_transf, test_data, response_var, 
+                                    transformation = "boxcox", lambda = optimal_lambda)
 
-# Predict using the transformed model
-predicted_values <- predict(model_transf, newdata = test_data)
+# Calculate metrics for the 2nd-order model
+metrics_2nd_order <- calculate_metrics(model_quad, test_data, response_var)
 
-# Back-transform the predictions to the original scale
-back_transformed_predictions <- (predicted_values * lambda + 1)^(1 / lambda)
+# Combine the results
+comparison_metrics <- rbind(
+  Base_Model = metrics_base,
+  Box_Cox_Model = metrics_boxcox,
+  Second_Order_Model = metrics_2nd_order
+)
 
-# Calculate RMSE and MAE
-rmse_value <- rmse(test_data$price, back_transformed_predictions)
-mae_value <- mae(test_data$price, back_transformed_predictions)
+# Print the comparison table
+print(comparison_metrics)
+```
 
-# Print results
-cat("RMSE (Back-Transformed):", rmse_value, "\n")
-cat("MAE (Back-Transformed):", mae_value, "\n")
+-   **Base Model**: The RMSE and MAE are higher compared to other models. The RMSE percentage is also the highest (16.94943%), showing relatively less accurate predictions compared to other approaches.
 
-# Calculate RMSE and MAE as percentages of the mean price
-mean_price <- mean(test_data$price)
-rmse_percentage <- (rmse_value / mean_price) * 100
-mae_percentage <- (mae_value / mean_price) * 100
+-   **Box-Cox Model**: This model has the lowest RMSE (2.228661), MAE (1.450837), and RMSE percentage (13.63596%), making it the most accurate model in this comparison. The Box-Cox transformation seems to improve the fit significantly.
 
-cat("RMSE as Percentage of Mean Price:", rmse_percentage, "%\n")
-cat("MAE as Percentage of Mean Price:", mae_percentage, "%\n")
+-   **Second-Order Model**: While it performs better than the Base Model, its RMSE (2.572680) and MAE (1.718590) are higher than the Box-Cox Model. The RMSE percentage (15.74082%) is also closer to the Base Model
 
+```{r}
+library(ggplot2)
+
+# Assuming your test data is stored in a dataframe called `test_data`
+# Iterate over all numeric columns and create boxplots
+numeric_columns <- sapply(test_data, is.numeric)
+
+# Create boxplots for each numeric column
+for (col in names(test_data)[numeric_columns]) {
+  print(
+    ggplot(test_data, aes_string(y = col)) +
+      geom_boxplot(outlier.color = "red", fill = "lightblue", color = "darkblue") +
+      labs(title = paste("Boxplot of", col), y = col) +
+      theme_minimal()
+  )
+}
+```
+
+There are instances that the testdata has outliers so we will run after removing them
+
+```{r}
+calculate_metrics_wo_out <- function(model, test_data, response, transformation = NULL, lambda = NULL) {
+  
+  cooksd <- cooks.distance(model)
+  
+  # Threshold for Cook's Distance
+  threshold <- 4 / nrow(test_data)
+  
+  # Identify influential points
+  influential_points <- which(cooksd > threshold)
+  
+  test_data_cleaned <- test_data[-influential_points, ]
+  predictions <- predict(model, newdata = test_data_cleaned)
+  
+  # Back-transform predictions if needed
+  if (!is.null(transformation) && transformation == "boxcox") {
+    predictions <- ((predictions * lambda) + 1)^(1 / lambda)
+  }
+  
+  actuals <- test_data_cleaned[[response]]
+  rmse <- sqrt(mean((actuals - predictions)^2))
+  mae <- mean(abs(actuals - predictions))
+  
+  mean_price <- mean(actuals)
+  rmse_percentage <- (rmse / mean_price) * 100
+  mae_percentage <- (mae / mean_price) * 100
+  
+  return(data.frame(
+    RMSE = rmse,
+    MAE = mae,
+    RMSE_Percentage = rmse_percentage,
+    MAE_Percentage = mae_percentage
+  ))
+}
 ```
 
 ```{r}
-vif(model_transf, type = "predictor")
+# Specify the response variable
+response_var <- "price"
+
+# Calculate metrics for the base model with interaction
+metrics_base <- calculate_metrics_wo_out(model, test_data, response_var)
+
+# Calculate metrics for the Box-Cox transformed model
+metrics_boxcox <- calculate_metrics_wo_out(model_transf, test_data, response_var, 
+                                    transformation = "boxcox", lambda = optimal_lambda)
+
+# Calculate metrics for the 2nd-order model
+metrics_2nd_order <- calculate_metrics_wo_out(model_quad, test_data, response_var)
+
+# Combine the results
+comparison_metrics <- rbind(
+  Base_Model = metrics_base,
+  Box_Cox_Model = metrics_boxcox,
+  Second_Order_Model = metrics_2nd_order
+)
+
+# Print the comparison table
+print(comparison_metrics)
 ```
+
+### **Analysis:**
+
+1.  **Base Model:**
+
+    -   RMSE increased slightly (from **2.770214** to **2.799309**), indicating minimal sensitivity to outliers.
+
+    -   MAE increased slightly (from **1.785347** to **1.795825**), showing a similar trend.
+
+2.  **Box-Cox Model:**
+
+    -   RMSE increased marginally (from **2.228661** to **2.248170**), indicating good robustness to outliers.
+
+    -   MAE remained nearly identical (**1.450837** vs **1.451112**), suggesting strong resilience.
+
+3.  **Second-Order Model:**
+
+    -   RMSE slightly increased (from **2.572680** to **2.566874**).
+
+    -   MAE increased slightly as well (**1.718590** to **1.709597**).
+
+### **Conclusions:**
+
+-   **Box-Cox Transformation Model** appears to handle outliers effectively and shows the smallest difference in metrics when outliers are removed. This indicates its robustness to extreme values.
+
+-   The **Base Model** and **Second-Order Model** are moderately affected by outliers, with slight increases in both RMSE and MAE.
+
+-   The impact of outliers is relatively small across all models, but the **Box-Cox Model** consistently outperforms others in terms of RMSE and MAE, both with and without outliers.
+
+Thus, the Box-Cox Model remains the best-performing choice overall, regardless of the presence of outliers.

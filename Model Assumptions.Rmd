@@ -14,7 +14,7 @@ training_data$name <- as.factor(training_data$name)
 
 ### Residual Plots Comparison
 
-We have finalized `distance` and `surge_multiplier` and `name` as are predictors for our model. Next we need to see if our data is able to satisfy all assumptions that are needed for fitting into a linear regression model.
+We have finalized `distance` and `surge_multiplier` and `name` as are predictors for our model and have included interaction term. Next we need to see if our data is able to satisfy all assumptions that are needed for fitting into a linear regression model.
 
 ```{r}
 model = lm(formula = price ~ distance + surge_multiplier + name + distance:surge_multiplier, data = training_data)
@@ -29,32 +29,6 @@ qqnorm(resid(model), main = "Normal Q-Q Plot", col = "darkgrey")
 qqline(resid(model), col = "dodgerblue", lwd = 2)
 ```
 
-### Residual Plot:
-
--   **Scattered Residuals**:
-
-    -   The residuals are randomly scattered around the horizontal line at 0, which is a good sign.
-
-    -   However, there is some **heteroscedasticity** (slight funnel shape), where the spread of residuals increases with higher fitted values.
-
--   **No Major Patterns**:
-
-    -   No clear non-linear patterns, indicating the model's functional form is appropriate.
-
-### Normal Q-Q Plot:
-
--   **Alignment with the Line**:
-
-    -   Residuals align well with the theoretical line, indicating approximate normality.
-
--   **Deviations in the Tails**:
-
-    -   Some deviations are visible at the extreme ends, which could indicate a few outliers or non-normality in the tails.
-
-### Observations:
-
--   The model performs well overall but could benefit from addressing the slight heteroscedasticity and deviations in the tails.
-
 ```{r}
 library(lmtest)
 library(stats)
@@ -62,7 +36,69 @@ bptest(model)
 shapiro.test(residuals(model))
 ```
 
-### Solution 1: Removing Outliers
+### Observations:
+
+1.  **Residual vs. Fitted Plot:**
+
+    -   The plot shows a distinct funnel shape, suggesting heteroscedasticity. The variance of residuals increases with fitted values, which violates the assumption of homoscedasticity (constant variance).
+
+2.  **Normal Q-Q Plot:**
+
+    -   Residuals deviate from the theoretical line, especially in the tails. This indicates that the residuals are not normally distributed.
+
+3.  **Breusch-Pagan Test:**
+
+    -   The p-value is extremely small (1.75e-06), confirming heteroscedasticity.
+
+4.  **Shapiro-Wilk Test:**
+
+    -   The p-value (\< 2.2e-16) indicates that residuals significantly deviate from normality.
+
+Solution 1: Without Interaction Term
+
+```{r}
+model_simple = lm(formula = price ~ distance + surge_multiplier + name, data = training_data)
+
+par(mfrow = c(1, 2))
+
+plot(resid(model_simple)~fitted(model_simple), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Residual plot")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+qqnorm(resid(model_simple), main = "Normal Q-Q Plot", col = "darkgrey")
+qqline(resid(model_simple), col = "dodgerblue", lwd = 2)
+```
+
+```{r}
+library(lmtest)
+library(stats)
+bptest(model_simple)
+shapiro.test(residuals(model_simple))
+```
+
+### Observations:
+
+1.  **Residual vs. Fitted Plot:**
+
+    -   The heteroscedasticity issue remains prominent, as residuals show a clear funnel pattern. This indicates non-constant variance, which violates the homoscedasticity assumption.
+
+2.  **Normal Q-Q Plot:**
+
+    -   Residuals deviate substantially from the normal distribution, especially in the tails. This suggests that the assumption of normality is not met.
+
+3.  **Breusch-Pagan Test:**
+
+    -   The test strongly rejects the null hypothesis of homoscedasticity (p-value = 1.542e-13), confirming significant heteroscedasticity.
+
+4.  **Shapiro-Wilk Test:**
+
+    -   The test confirms that residuals are not normally distributed (p-value \< 2.2e-16).
+
+### Comparison with the Interaction Model:
+
+Removing the interaction term has not resolved the underlying issues in the residuals. This suggests that while the interaction term increased multicollinearity, its inclusion might not be the root cause of assumption violations.
+
+### Solution 2: Removing Outliers
 
 First we check if our data contains any outliers. If there is, then we remove it and try to check for violations again.
 
@@ -92,88 +128,65 @@ cat("Indices of influential points:", influential_points, "\n")
 
 ```{r}
 refined_data = training_data[-influential_points,] 
-model1 = lm(price ~ distance + surge_multiplier + name + distance:surge_multiplier, refined_data)
+model_wo_out = lm(price ~ distance + surge_multiplier + name + distance:surge_multiplier, refined_data)
 
 par(mfrow = c(1, 2))
 
-plot(resid(model1)~fitted(model1), col = "grey", pch = 20, xlab = "Fitted", ylab = "Residuals", main = "Residual plot") 
+plot(resid(model_wo_out)~fitted(model_wo_out), col = "grey", pch = 20, xlab = "Fitted", ylab = "Residuals", main = "Residual plot") 
 abline(h = 0, col = "darkorange", lwd = 2)
 
-qqnorm(resid(model1), main = "Normal Q-Q Plot", col = "darkgrey") 
-qqline(resid(model1), col = "dodgerblue", lwd = 2)
+qqnorm(resid(model_wo_out), main = "Normal Q-Q Plot", col = "darkgrey") 
+qqline(resid(model_wo_out), col = "dodgerblue", lwd = 2)
 ```
-
-### Analysis of Residual Plots After Removing Outliers
-
-#### 1. **Residuals vs. Fitted Plot (Left)**:
-
--   **Random Scatter**:
-
-    -   The residuals are more evenly scattered around the horizontal line at 0, indicating better model fit.
-
--   **Reduced Heteroscedasticity**:
-
-    -   The spread of residuals appears more consistent across fitted values, showing that removing outliers helped address heteroscedasticity.
-
-#### 2. **Normal Q-Q Plot (Right)**:
-
--   **Improved Normality**:
-
-    -   The residuals align more closely with the theoretical Q-Q line, especially in the tails.
-
-    -   This suggests the residuals now better approximate a normal distribution.
 
 ```{r}
-print(bptest(model1))
-print(shapiro.test(residuals(model1)))
+print(bptest(model_wo_out))
+print(shapiro.test(residuals(model_wo_out)))
 ```
 
-#### 1. **Studentized Breusch-Pagan Test**:
+#### Observations:
 
--   **Result**:
+1.  **Residual vs. Fitted Plot:**
 
-    -   **BP Statistic = 64.976**, **p-value = 3.45e-08**.
+    -   The heteroscedasticity appears to have reduced compared to the earlier model but is still present, as evidenced by the funnel-like pattern.
 
-    -   The null hypothesis of **homoscedasticity** (constant variance) is still rejected.
+    -   Residuals are more evenly distributed around the zero line.
 
-    -   Although heteroscedasticity has likely decreased compared to earlier results (BP = 150), it is still present.
+2.  **Normal Q-Q Plot:**
 
--   **What This Means**:
+    -   The residuals appear closer to the normal line, indicating improved normality. However, slight deviations in the tails remain.
 
-    -   There is evidence that the variance of residuals is not constant.
+3.  **Breusch-Pagan Test:**
 
-    -   While the model is improved, additional steps may still be needed to address heteroscedasticity.
+    -   The p-value (1.576e-07) indicates that heteroscedasticity is still statistically significant.
 
-#### 2. **Shapiro-Wilk Normality Test**:
+4.  **Shapiro-Wilk Test:**
 
--   **Result**:
+    -   The p-value (0.003498) suggests that the residuals still deviate from normality, though the deviation has lessened.
 
-    -   **W = 0.99039**, **p-value = 0.003695**.
+### Insights:
 
-    -   The null hypothesis of **normality** is rejected (p-value \< 0.05).
+-   Removing outliers has positively impacted the model assumptions, especially for normality.
 
-    -   This indicates that the residuals are not perfectly normal, though the deviation may not be severe (W is very close to 1).
+-   However, heteroscedasticity remains an issue, which may impact the reliability of confidence intervals and hypothesis tests.
 
--   **What This Means**:
-
-    -   The residuals are approximately normal, but some deviations (possibly in the tails) remain.
-
-    -   This result aligns with the Q-Q plot, where the residuals showed slight deviations in the tails.
-
-### Solution 2: Box-Cox Transformation
+### Solution 3: Box-Cox Transformation
 
 Next we go with box cox so that we get a optimal lambda value for our new function of `price`
 
 ```{r}
 library(MASS)
 par(mfrow=c(1,1))
-boxcox(model1, lambda = seq(-1, 1, by = 0.05))
+boxcox_model <- boxcox(model_wo_out, lambda = seq(-2, 2, by = 0.1))
+
+optimal_lambda <- boxcox_model$x[which.max(boxcox_model$y)]
+cat("Optimal Lambda:", optimal_lambda, "\n")
 ```
 
-From the plot, we can see 𝝺 = 0.25 approx has the highest log likelihood. So we will take log(price) as our target variable and then try to fit the model.
+From the plot, we can see 𝝺 = 0.34 approx has the highest log likelihood. So we will take log(price) as our target variable and then try to fit the model.
 
 ```{r}
-lambda = 0.4
+lambda = optimal_lambda
 model_transf <- lm(((price^(lambda)-1)/(lambda))~distance + surge_multiplier + name + distance:surge_multiplier,data=refined_data)
 par(mfrow = c(1, 2))
 
@@ -185,61 +198,40 @@ qqnorm(resid(model_transf), main = "Normal Q-Q Plot", col = "darkgrey")
 qqline(resid(model_transf), col = "dodgerblue", lwd = 2)
 ```
 
-### Residual Diagnostics After Box-Cox Transformation (λ=0.25):
-
-#### 1. **Residuals Plot** :
-
--   **Improvement in Homoscedasticity**:
-
-    -   The residuals are now more uniformly scattered around the horizontal line at 0.
-
-    -   The spread of residuals is more consistent across the range of fitted values, suggesting that heteroscedasticity has been mitigated.
-
--   **No Apparent Patterns**:
-
-    -   There is no discernible pattern in the residuals, indicating the model is well-specified.
-
-#### 2. **Normal Q-Q Plot** :
-
--   **Better Normality**:
-
-    -   The residuals align more closely with the theoretical line, especially in the middle range.
-
-    -   Slight deviations are still visible in the tails, but these are much less pronounced than before.
-
 ```{r}
 print(bptest(model_transf))
 print(shapiro.test(residuals(model_transf)))
 ```
 
-#### 1. **Studentized Breusch-Pagan Test**:
+#### **Residual Plot:**
 
--   **BP Statistic = 27.78, p-value = 0.02299**:
+-   The residuals are spread fairly evenly around the horizontal line at 0, suggesting that there is no strong pattern or heteroscedasticity. This indicates that the assumptions of linearity and constant variance are reasonably satisfied.
 
-    -   The null hypothesis of **homoscedasticity** (constant variance) is **rejected** (p-value \< 0.05).
+1.  **Breusch-Pagan Test (BP):**
 
-    -   However, the test statistic (BP = 27.78) is significantly lower than before (BP = 64.976), indicating a **reduction in heteroscedasticity** after the transformation.
+    -   The p-value for the BP test is **0.0525**, which is slightly above the typical threshold of 0.05.
 
--   **What This Means**:
+    -   This suggests that there isn't strong evidence of heteroscedasticity in the transformed model, and the assumption of constant variance is mostly met.
 
-    -   While the variance of residuals is not perfectly constant, the issue is less severe than in the original model.
+2.  **Shapiro-Wilk Normality Test:**
 
-#### 2. **Shapiro-Wilk Normality Test**:
+    -   The p-value for the Shapiro-Wilk test is **8.061e-05**, indicating that the residuals deviate from normality. However, given the large sample size, minor deviations from normality are expected and may not heavily impact the validity of your predictions.
 
--   **W = 0.95784, p-value = 9.157e-11**:
+### Key Points:
 
-    -   The null hypothesis of **normality** is rejected (p-value \< 0.05).
+-   The **Box-Cox transformation** has effectively improved the model assumptions, particularly with respect to variance.
 
-    -   The W statistic (closer to 1) indicates that the residuals are closer to normality compared to the untransformed model, but deviations remain.
-
--   **What This Means**:
-
-    -   The Box-Cox transformation has improved normality, but some non-normality persists, particularly in the tails, as indicated by the Q-Q plot.
-
-### Solution 3: 2nd Order
+-   While the Shapiro-Wilk test indicates non-normality, the Q-Q plot shows only slight deviations, particularly in the tails. This is often acceptable in real-world scenarios where prediction accuracy is prioritized over perfect normality.
 
 ```{r}
-model_quad <- lm(price ~ distance + surge_multiplier + I(distance^2) + I(surge_multiplier^2) + name, data = training_data)
+summary(model_transf)
+AIC(model_transf)
+```
+
+### Solution 4: 2nd Order
+
+```{r}
+model_quad <- lm(price ~ distance + surge_multiplier + I(distance^2) + I(surge_multiplier^2) + name + distance:surge_multiplier, data = refined_data)
 summary(model_quad)
 ```
 
@@ -254,150 +246,21 @@ qqnorm(resid(model_quad), main = "Normal Q-Q Plot", col = "darkgrey")
 qqline(resid(model_quad), col = "dodgerblue", lwd = 2)
 ```
 
-### Residual Diagnostics for the Quadratic Model
-
-#### **1. Residual Plot (Left)**:
-
--   **Homoscedasticity**:
-
-    -   The residuals are fairly evenly distributed around the horizontal line at zero.
-
-    -   Some clustering is visible in the lower fitted value range, indicating potential slight heteroscedasticity.
-
--   **No Systematic Pattern**:
-
-    -   There are no obvious non-linear patterns, suggesting the quadratic terms are addressing any curvature in the data.
-
-#### **2. Normal Q-Q Plot (Right)**:
-
--   **Normality**:
-
-    -   The residuals align closely with the theoretical line, particularly in the center range of the distribution.
-
-    -   Slight deviations in the tails persist, but these are expected in most practical scenarios and may not significantly affect the model's performance.
-
 ```{r}
 print(bptest(model_quad))
 print(shapiro.test(residuals(model_quad)))
 ```
 
-#### **1. Studentized Breusch-Pagan Test**:
+#### The results for the 2nd-order model (quadratic terms) show:
 
--   **BP Statistic = 130.98, p-value \< 2.2e-16**:
+1.  **Residual Plot**: The residuals appear randomly distributed around zero, indicating that the assumption of homoscedasticity might be closer to being satisfied, but the Breusch-Pagan test indicates there is still heteroscedasticity (`p-value = 2.429e-08`).
 
-    -   The null hypothesis of **homoscedasticity** (constant variance) is strongly rejected (p-value \< 0.05).
+2.  **Normal Q-Q Plot**: The residuals follow the theoretical quantile line fairly well, except for some deviations in the tails. The Shapiro-Wilk test (`p-value = 0.003394`) indicates that normality is not fully satisfied.
 
-    -   The test indicates **severe heteroscedasticity** in the residuals.
+### Evaluation:
 
--   **What This Means**:
+-   **Homoscedasticity**: The heteroscedasticity issue persists, though it has likely improved.
 
-    -   The quadratic model captures some non-linear relationships but fails to resolve variance instability effectively.
+-   **Normality**: Normality is still slightly violated but given your sample size (n=477), the central limit theorem reduces its impact on inference.
 
-### Combining Outlier removal, 2nd order and BoxCox
-
-We will combine all the three solutions to make use of all the advantages of these to stabilize the assumptions
-
-```{r}
-
-model_2nd_order <- lm(price ~ 
-                      distance + I(distance^2) + 
-                      surge_multiplier + 
-                      name, data = refined_data)
-summary(model_2nd_order)
-```
-
-```{r}
-boxcox(model_2nd_order, lambda = seq(-1, 1, 0.05))
-```
-
-Taking lambda=0.4
-
-```{r}
-lambda = 0.4
-model_transf_2nd_order <- lm(((price^(lambda)-1)/(lambda))~distance + surge_multiplier + I(distance^2) + name,data=refined_data)
-par(mfrow = c(1, 2))
-
-plot(resid(model_transf_2nd_order)~fitted(model_transf_2nd_order), col = "grey", pch = 20,
-     xlab = "Fitted", ylab = "Residuals", main = "Residual plot")
-abline(h = 0, col = "darkorange", lwd = 2)
-
-qqnorm(resid(model_transf_2nd_order), main = "Normal Q-Q Plot", col = "darkgrey")
-qqline(resid(model_transf_2nd_order), col = "dodgerblue", lwd = 2)
-```
-
-```{r}
-print(bptest(model_transf_2nd_order))
-print(shapiro.test(residuals(model_transf_2nd_order)))
-
-```
-
-### Interpretation of Residual Plots After Transformation and Second-Order Terms (λ=0.4):
-
-#### 1. **Residual Plot**:
-
--   **Improved Homoscedasticity**:
-
-    -   The residuals appear more evenly scattered around the horizontal line at 0, with no apparent pattern or funnel shape.
-
-    -   This indicates that heteroscedasticity has been further mitigated.
-
--   **No Major Patterns**:
-
-    -   The absence of clear patterns suggests the model is well-specified for the transformed response variable.
-
-#### 2. **Normal Q-Q Plot**:
-
--   **Better Alignment with the Theoretical Line**:
-
-    -   The residuals closely follow the blue reference line, especially in the middle range, indicating improved normality.
-
-    -   Minor deviations are still observed in the tails, but they are significantly reduced compared to earlier models.
-
-**Model Fit**:
-
--   The transformation (λ=0.4) and inclusion of second-order terms have significantly improved compliance with linear regression assumptions:
-
-    -   Homoscedasticity: Residuals are more uniformly scattered.
-
-    -   Normality: Residuals are closer to a normal distribution.
-
-#### 1. **Studentized Breusch-Pagan Test**:
-
--   **Result**:
-
-    -   **BP Statistic = 28.591**, **p-value = 0.01186**.
-
-    -   The null hypothesis of **homoscedasticity** (constant variance) is rejected (p-value \< 0.05).
-
-    -   However, the BP statistic and p-value indicate that **heteroscedasticity is much less severe** compared to earlier results.
-
--   **What This Means**:
-
-    -   While some residual variance remains non-constant, the Box-Cox transformation and second-order terms have significantly mitigated heteroscedasticity.
-
-    -   The residuals are now acceptable for many practical applications.
-
-#### 2. **Shapiro-Wilk Normality Test**:
-
--   **Result**:
-
-    -   **W = 0.99396**, **p-value = 0.05765**.
-
-    -   The null hypothesis of **normality** is **not rejected** (p-value \> 0.05).
-
-    -   This indicates that the residuals are approximately normally distributed.
-
--   **What This Means**:
-
-    -   The Box-Cox transformation has successfully addressed residual normality issues.
-
-    -   The model now meets the normality assumption of linear regression.
-
-```{r}
-AIC(model_transf,model_quad, model)
-AIC(model_2nd_order, model_transf_2nd_order)
-```
-
-```{r}
-summary(model_transf_2nd_order)
-```
+### 
